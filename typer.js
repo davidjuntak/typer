@@ -53,6 +53,20 @@ var WordView = Backbone.View.extend({
 	}
 });
 
+var Score = Backbone.Model.extend({
+	initialize: function() {
+		this.set({value:0});
+	},
+
+	set_value: function(value) {
+		this.set({value:value});
+	},
+
+	show_value: function() {
+		alert('Your score is : ' + this.get('value'));
+	}
+});
+
 var TyperView = Backbone.View.extend({
 	initialize: function() {
 		var wrapper = $('<div>')
@@ -66,6 +80,9 @@ var TyperView = Backbone.View.extend({
 		this.wrapper = wrapper;
 		
 		var self = this;
+
+		var score = self.model.get('score');
+		
 		var text_input = $('<input>')
 			.addClass('form-control')
 			.css({
@@ -78,20 +95,125 @@ var TyperView = Backbone.View.extend({
 				'z-index':'1000'
 			}).keyup(function() {
 				var words = self.model.get('words');
+				var matched = false;
+
 				for(var i = 0;i < words.length;i++) {
 					var word = words.at(i);
 					var typed_string = $(this).val();
 					var string = word.get('string');
 					if(string.toLowerCase().indexOf(typed_string.toLowerCase()) == 0) {
 						word.set({highlight:typed_string.length});
+						matched = true;
+
 						if(typed_string.length == string.length) {
+							score.set_value(score.get('value') + typed_string.length);
 							$(this).val('');
 						}
 					} else {
 						word.set({highlight:0});
 					}
 				}
+
+				if(!matched){
+					if(score.get('value') > 0) {
+						score.set_value(score.get('value') - 1);
+					}
+				}
+				score_text.text(score.get('value'));
 			});
+
+		var start_button = $('<button>')
+			.addClass('btn btn-default start')
+			.append('<span class="glyphicon glyphicon-refresh"></span>')
+			.click(function() {
+				var confirmation = confirm('Restart the game?');
+				if(confirmation) {
+					location.reload();
+				} else {
+					text_input.focus();
+				}
+			});
+
+		var stop_button = $('<button>')
+			.addClass('btn btn-default stop')
+			.append('<span class="glyphicon glyphicon-stop"></span>')
+			.click(function() {
+				var confirmation = confirm('Stop the game?');
+				if(confirmation) {
+					text_input.attr('disabled', 'disabled');
+					self.model.pause();
+
+					$(this).attr('disabled', '');
+					pause_button.attr('disabled', '');
+					resume_button.attr('disabled', '');
+
+					score.show_value();
+				} else {
+					text_input.focus();
+				}
+			});
+
+		var pause_button = $('<button>')
+			.addClass('btn btn-default pause')
+			.append('<span class="glyphicon glyphicon-pause"></span>')
+			.click(function() {
+				text_input.attr('disabled', 'disabled');
+				self.model.pause();
+			});
+
+		var resume_button = $('<button>')
+			.addClass('btn btn-default resume')
+			.append('<span class="glyphicon glyphicon-play-circle"></span>')
+			.click(function() {
+				text_input.removeAttr('disabled');
+				text_input.focus();
+				self.model.start();
+			});
+		
+		var button_wrapper = $('<div>')
+			.css({
+				'position':'absolute',
+				'margin':'10px',
+				'z-index':'1000'
+			})
+			.append(start_button, stop_button, pause_button, resume_button);
+
+		var god_mode_checkbox = $('<input type="checkbox">')
+			.addClass('god-mode');
+
+		var god_mode_text = ' Mode Dewa Ngetik';
+
+		var god_mode_wrapper = $('<div>')
+			.css({
+				position:'absolute',
+				top:'35px',
+				margin:'10px',
+				'z-index':'1000'
+			})
+			.append(god_mode_checkbox, god_mode_text);
+
+		var score_text = $('<h3>')
+			.addClass('score')
+			.css({
+				'color':'red',
+				'margin':'3px',
+				'padding':'0px'
+			})
+			.text('0');
+
+		var score_wrapper = $('<div>')
+			.css({
+				'position':'absolute',
+				'right':'0',
+				'margin':'10px',
+				'z-index':'1000',
+				'border-radius':'4px',
+				'background-color':'#fff',
+				'border':'1px solid #ccc',
+				'text-align':'center',
+				'width':'100px'
+			})
+			.append(score_text);
 		
 		$(this.el)
 			.append(wrapper
@@ -102,7 +224,7 @@ var TyperView = Backbone.View.extend({
 					.submit(function() {
 						return false;
 					})
-					.append(text_input)));
+					.append(text_input, button_wrapper, god_mode_wrapper, score_wrapper)));
 		
 		text_input.css({left:((wrapper.width() - text_input.width()) / 2) + 'px'});
 		text_input.focus();
@@ -138,7 +260,9 @@ var Typer = Backbone.Model.extend({
 		min_distance_between_words:50,
 		words:new Words(),
 		min_speed:1,
-		max_speed:5,
+		max_speed:2,
+		score:new Score(),
+		timer:null
 	},
 	
 	initialize: function() {
@@ -149,11 +273,19 @@ var Typer = Backbone.Model.extend({
 	},
 
 	start: function() {
-		var animation_delay = 100;
+		var animation_delay = 30;
 		var self = this;
-		setInterval(function() {
-			self.iterate();
-		},animation_delay);
+		
+		if(!this.timer) {
+			this.timer = setInterval(function() {
+				self.iterate();
+			},animation_delay)
+		}
+	},
+
+	pause: function() {
+		clearInterval(this.timer);
+		this.timer = null;
 	},
 	
 	iterate: function() {
@@ -196,6 +328,17 @@ var Typer = Backbone.Model.extend({
 			
 			if(word.get('y') > $(window).height() || word.get('move_next_iteration')) {
 				words_to_be_removed.push(word);
+
+				if ($('.god-mode').is(':checked')) {
+					$('.word_input').attr('disabled', 'disabled');
+					this.pause();
+
+					$('.stop').attr('disabled', '');
+					$('.pause').attr('disabled', '');
+					$('.resume').attr('disabled', '');
+
+					this.get('score').show_value();
+				}
 			}
 			
 			if(word.get('highlight') && word.get('string').length == word.get('highlight')) {

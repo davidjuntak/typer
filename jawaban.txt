@@ -1,0 +1,157 @@
+1. Sebutkan library apa saja yang dipakai, website library itu dimana, dan dokumentasi library itu ada dimana.
+    - jQuery
+        versi : 1.11.1
+        website : http://jquery.com
+        dokumentasi : http://api.jquery.com
+
+    - jQuery UI
+        versi : 1.10.4
+        website : http://jqueryui.com
+        dokumentasi : http://api.jqueryui.com
+
+    - Underscore
+        versi : 1.6.0
+        website : http://underscorejs.org
+        dokumentasi : http://underscorejs.org
+
+    - Backbone
+        versi : 1.1.2
+        website : http://backbonejs.org
+        dokumentasi : http://backbonejs.org
+
+    - Bootstrap
+        versi : 3.1.1
+        website : http://getbootstrap.com
+        dokumentasi : http://getbootstrap.com
+
+2. Aplikasi itu 'laggy'. Kenapa? Bagaimana cara membuat animasi lebih 'smooth'?
+    Cara kerja pergerakan dari kumpulan kata di aplikasi ini adalah dengan cara menggeser posisi secara vertikal sejumlah ukuran pixel.
+        move: function() {
+            this.set({y:this.get('y') + this.get('speed')});
+        }
+
+    Kumpulan kata di aplikasi ini sendiri dapat bergerak karena diberikan pergeseran posisi secara vertikal tadi dilakukan secara terus menerus dengan delay waktu 100 mililiseconds.
+        start: function() {
+            var animation_delay = 100;
+            var self = this;
+            setInterval(function() {
+                self.iterate();
+            },animation_delay);
+        }
+
+        penjelasan fungsi setInterval : https://developer.mozilla.org/en-US/docs/Web/API/WindowTimers/setInterval
+
+    Agar pergerakan kata di aplikasi ini lebih halus maka variabel animation_delay perlu kita ganti menjadi nilai yang lebih kecil (semakin kecil semakin halus). Oleh karena itu saya mengganti nilai variabel animation_delay menjadi 30 dan kemudian saya mengatur nilai variabel max_speed menjadi 2 supaya pergerakan katanya tidak terlalu cepat.
+
+3. Aplikasi itu tidak akan jalan di salah satu 3 browser populer (Chrome, Firefox, Internet Explorer)? Kenapa? Solusinya hanya menghapus satu character di code, character yang mana?
+    Aplikasi ini tidak akan jalan di browser Internet explorer mulai dari versi 7 dan di bawahnya. 
+    Solusi agar aplikasi ini dapat berjalan di Internet explorer adalah dengan cara menghapus tanda koma (,) di file typer.js di line 141 :
+    max_speed:5, menjadi max_speed:5
+
+4. Implementasikan tombol Start, Stop, Pause, dan Resume.
+    Lihat implementasinya dengan cara menjalankan aplikasi.
+    
+    Start :
+        var start_button = $('<button>')
+            .addClass('btn btn-default start')
+            .append('<span class="glyphicon glyphicon-refresh"></span>')
+            .click(function() {
+                var confirmation = confirm('Restart the game?');
+                if(confirmation) {
+                    location.reload();
+                } else {
+                    text_input.focus();
+                }
+            });
+
+    Stop
+        var stop_button = $('<button>')
+            .addClass('btn btn-default stop')
+            .append('<span class="glyphicon glyphicon-stop"></span>')
+            .click(function() {
+                var confirmation = confirm('Stop the game?');
+                if(confirmation) {
+                    text_input.attr('disabled', 'disabled');
+                    self.model.pause();
+
+                    $(this).attr('disabled', '');
+                    pause_button.attr('disabled', '');
+                    resume_button.attr('disabled', '');
+
+                    score.show_value();
+                } else {
+                    text_input.focus();
+                }
+            });
+
+    Pause
+        var pause_button = $('<button>')
+            .addClass('btn btn-default pause')
+            .append('<span class="glyphicon glyphicon-pause"></span>')
+            .click(function() {
+                text_input.attr('disabled', 'disabled');
+                self.model.pause();
+            });
+
+    Resume
+        var resume_button = $('<button>')
+            .addClass('btn btn-default resume')
+            .append('<span class="glyphicon glyphicon-play-circle"></span>')
+            .click(function() {
+                text_input.removeAttr('disabled');
+                text_input.focus();
+                self.model.start();
+            });
+
+5. Ketika ukuran window dirubah, susunan huruf yang 'terbentur' batas window menjadi tidak 1 baris. Benarkan.
+    Susunan huruf menjadi tidak 1 baris karena div element dari susunan huruf menggunakan css position absolute dan pengaturan posisi dari kiri dalam ukuran pixel.
+        <div style="position: absolute; top: 134px; left: 900px;">
+
+    Untuk mengatasi hal ini pengaturan posisi dari kiri dapat diubah ke ukuran percent (%) dan menentukan ukuran lebar dari susunan huruf ini sehingga ketika browser diresize div element akan menyesuaikan posisinya walaupun secara tidak sempurna.
+        // melakukan konversi dari pixel ke percent
+        var left = (this.model.get('x') / $(window).width()) * 100;
+        $(this.el).css({
+            top:this.model.get('y') + 'px',
+            width:$(this.el).width() + 'px',
+            left:left + '%',
+        });
+
+6. Implementasikan sistem score.
+    Lihat implementasinya dengan cara menjalankan aplikasi.
+
+    Menambahkan model score yang berfungsi untuk menampilkan dan mengubah score.
+    var Score = Backbone.Model.extend({
+        initialize: function() {
+            this.set({value:0});
+        },
+
+        set_value: function(value) {
+            this.set({value:value});
+        },
+
+        show_value: function() {
+            alert('Your score is : ' + this.get('value'));
+        }
+    });
+
+    Menambahkan checkbox mode dewa ngetik yang apabila checkbox ini dicentang maka ketika susunan huruf mencapai batas bawah layar maka permainan akan selesai.
+
+7. Implementasikan hukuman berupa pengurangan nilai bila salah ketik.
+    Lihat implementasinya dengan cara menjalankan aplikasi.
+
+    Jika kata yang diketik sama dengan kata yang tampil maka tambahkan score sesuai dengan panjang kata.
+        if(string.toLowerCase().indexOf(typed_string.toLowerCase()) == 0) {
+            word.set({highlight:typed_string.length});
+            matched = true;
+            if(typed_string.length == string.length) {
+                score.set_value(score.get('value') + typed_string.length);
+                $(this).val('');
+            }
+            ...
+
+    Jika huruf yang diketik tidak sesuai dengan huruf yang tampil maka kurangin score sejumlah 1 untuk tiap huruf yang salah.
+        if(!matched){
+            if(score.get('value') > 0) {
+                score.set_value(score.get('value') - 1);
+            }
+        }
